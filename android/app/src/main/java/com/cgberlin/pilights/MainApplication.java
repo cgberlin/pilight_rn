@@ -1,4 +1,4 @@
-package com.invertase.rnfirebasestarter;
+package com.cgberlin.pilights;
 
 import android.support.multidex.MultiDexApplication;
 
