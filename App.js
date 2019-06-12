@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyleSheet, Platform, Image, Text, View, ScrollView } from 'react-native'
+import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native'
 import firebase from 'react-native-firebase'
 import Picker from './components/Picker'
 import { fromHsv } from 'react-native-color-picker'
@@ -41,10 +41,14 @@ export default class App extends React.Component {
     } : null;
   }
 
+  _getButtonStyle(type) {
+    if (type === this.state.type) return styles.activeButtonWrapper
+    else return styles.buttonWrapper
+  }
+
   _colorUpdated(color) {
     color = this.hexToRgb(fromHsv(color))
     let secondsBetween = this.secondsBetweenDates(this.state.lastColorUpdate, new Date())
-    console.log(secondsBetween)
     // need to slow down firestore updates
     if (secondsBetween > 1) {
       let lastColorUpdate = new Date()
@@ -55,6 +59,10 @@ export default class App extends React.Component {
         lastColorUpdate
       })
     }
+  }
+
+  _stateUpdated(type) {
+    this.stateRef.doc('control_type').update({type})
   }
 
   _onStateRefUpdate(querySnapshot) {
@@ -75,21 +83,34 @@ export default class App extends React.Component {
     })
   }
 
- 
-
   render() {
     return (
       <View style={styles.outerScroll}>
-        <Text style={styles.modulesHeader}>{this.state.type}</Text>
         <View style={styles.container}>
-          <Text>
-          {this.state.color.r}
-          {this.state.color.g}
-          {this.state.color.b}
-          </Text>
+          <TouchableOpacity 
+              style={this._getButtonStyle('WEATHER')} 
+              onPress={() => this._stateUpdated('WEATHER')}
+            >
+            <Text style={styles.buttonText}>Weather</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+              style={this._getButtonStyle('USER')} 
+              onPress={() => this._stateUpdated('USER')}
+            >
+            <Text style={styles.buttonText}>User</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+              style={this._getButtonStyle('PARTY')} 
+              onPress={() => this._stateUpdated('PARTY')}
+            >
+            <Text style={styles.buttonText}>Party</Text>
+          </TouchableOpacity>
         </View>
         {this.state.type === 'USER' &&
             <Picker pickedColor={(color) => this._colorUpdated(color)}/>
+        }
+        {this.state.type === 'PARTY' &&
+            <Image style={styles.partyImage} source={{uri: 'https://i.imgur.com/2m2Y7pQ.gif'}} />
         }
        
       </View>
@@ -102,12 +123,38 @@ const styles = StyleSheet.create({
     padding: '10%',
     flex: 1
   },  
+  partyImage: {
+    height: 200,
+    width: 'auto',
+    marginTop: 100
+  },  
   container: {
     flex: 0,
     flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: 'black',
+    justifyContent: 'space-between',
+    marginTop: 20
   },
+  buttonWrapper: {
+    width: '30%',
+    height: 40,
+    backgroundColor: 'blue',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 5
+  },
+  activeButtonWrapper: {
+    width: '30%',
+    height: 40,
+    backgroundColor: 'red',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 5
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold'
+  },  
   logo: {
     height: 120,
     marginBottom: 16,
