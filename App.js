@@ -4,7 +4,7 @@ import firebase from 'react-native-firebase'
 import Picker from './components/Picker'
 import { fromHsv } from 'react-native-color-picker'
 import { Emitter } from 'react-native-particles' // lol
-import TimePicker from "react-native-24h-timepicker" // im lazy
+import RangeSlider from 'react-native-range-slider'
 
 export default class App extends React.Component {
   constructor() {
@@ -19,9 +19,10 @@ export default class App extends React.Component {
       type: '',
       color: {r:0,g:0,b:0},
       lastColorUpdate: new Date(),
+      lastSpeedUpdate: new Date(),
       pattern: '',
-      startTime: '',
-      stopTime: ''
+      breatheSpeed: 0,
+      flashSpeed: 0
     }
   }
 
@@ -82,32 +83,23 @@ export default class App extends React.Component {
     })
   }
 
+  _speedUpdate(breatheSpeed, flashSpeed) {
+    if (breatheSpeed) breatheSpeed = breatheSpeed.selectedMaximum
+    if (flashSpeed) flashSpeed = flashSpeed.selectedMaximum
+    let secondsBetween = this.secondsBetweenDates(this.state.lastSpeedUpdate, new Date())
+    // need to slow down firestore updates
+    if (secondsBetween > 1) {
+      let lastSpeedUpdate = new Date()
+      if (breatheSpeed) this.displayRef.doc('config').update({ breatheSpeed })
+      if (flashSpeed) this.displayRef.doc('config').update({ flashSpeed })
+      this.setState({
+        lastSpeedUpdate
+      })
+    }
+  }
+
   _stateUpdated(type) {
     this.stateRef.doc('control_type').update({type})
-  }
-
-  onTimeCancel() {
-    this.StartTimePicker.close();
-    this.StopTimePicker.close();
-  }
-
-  onTimeConfirm(hour, minute, type) {
-    if (type === 'start') {
-      let startTime = `${hour}:${minute}` 
-      this.displayRef.doc('config').update({
-        startTime
-      })
-      this.setState({ startTime })
-      this.StartTimePicker.close()
-    } 
-    if (type === 'stop') {
-      let stopTime = `${hour}:${minute}` 
-      this.displayRef.doc('config').update({
-        stopTime
-      })
-      this.setState({ stopTime });
-      this.StopTimePicker.close()
-    }
   }
 
   _onStateRefUpdate(querySnapshot) {
@@ -130,11 +122,11 @@ export default class App extends React.Component {
 
   _onDisplayRefUpdate(querySnapshot) {
     querySnapshot.forEach(doc => {
-      let { startTime, stopTime, pattern } = doc.data()
+      let { pattern, breatheSpeed, flashSpeed } = doc.data()
       this.setState({
         pattern,
-        startTime, 
-        stopTime
+        breatheSpeed,
+        flashSpeed
       })
     })
   }
@@ -190,24 +182,36 @@ export default class App extends React.Component {
         </View>
 
         <View style={styles.container}>
-          <View style={styles.timeContainer}>
-            <Text style={styles.timeText}>Start: {this.state.startTime}</Text>
-            <TouchableOpacity 
-              style={styles.activeButtonWrapper}
-              onPress={() => this.StartTimePicker.open()}
-            >
-              <Text style={styles.buttonText}>Set</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.timeContainer}>
-            <Text style={styles.timeText}>Stop: {this.state.stopTime}</Text>
-            <TouchableOpacity 
-                style={styles.activeButtonWrapper}
-                onPress={() => this.StopTimePicker.open()}
-              >
-                <Text style={styles.buttonText}>Set</Text>
-            </TouchableOpacity>
-          </View>
+          {this.state.pattern === 'BREATHE' &&
+            <View style={styles.timeContainer}>
+              <Text>Breathe Speed</Text>
+              <RangeSlider
+                disableRange={true}
+                lineHeight={2}
+                handleDiameter={18}
+                minValue={10}
+                maxValue={120}
+                selectedMaximum={100}
+                style={{ flex: 1, height: 70, marginTop: 20, padding: 10, width: 200 }}
+                onChange={ (data)=>{ this._speedUpdate(data, false)} }
+              />
+            </View>
+          }
+          {this.state.pattern === 'FLASH' &&
+            <View style={styles.timeContainer}>
+              <Text>Flash Speed</Text>
+              <RangeSlider
+                disableRange={true}
+                lineHeight={2}
+                handleDiameter={18}
+                minValue={200}
+                maxValue={500}
+                selectedMaximum={250}
+                style={{ flex: 1, height: 70, marginTop: 20, padding: 10, width: 200 }}
+                onChange={ (data)=>{ this._speedUpdate(false, data)} }
+              />
+            </View>
+          }
         </View>
         {this.state.type === 'USER' &&
             <Picker pickedColor={(color) => this._colorUpdated(color)}/>
@@ -251,20 +255,7 @@ export default class App extends React.Component {
         >
           <Image source={require('./assets/cat.png')} />
         </Emitter>
-        <TimePicker
-          ref={ref => {
-            this.StartTimePicker = ref;
-          }}
-          onCancel={() => this.onTimeCancel()}
-          onConfirm={(hour, minute) => this.onTimeConfirm(hour, minute, 'start')}
-        />
-        <TimePicker
-          ref={ref => {
-            this.StopTimePicker = ref;
-          }}
-          onCancel={() => this.onTimeCancel()}
-          onConfirm={(hour, minute) => this.onTimeConfirm(hour, minute, 'stop')}
-        />
+        
       </View>
     );
   }
